@@ -16,3 +16,5 @@ vendor/
 go.sum
 gin
 lagou/lagou
+.DS_Store
+weibo/Weibo.app

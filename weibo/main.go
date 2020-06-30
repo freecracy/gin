@@ -3,9 +3,11 @@ package main
 import (
 	"log"
 	"net/http"
+	"sync"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/johnmccabe/go-bitbar"
+	"github.com/getlantern/systray"
+	"github.com/skratchdot/open-golang/open"
 )
 
 const (
@@ -15,14 +17,29 @@ const (
 )
 
 func main() {
-	app := bitbar.New()
-	app.StatusLine("热搜")
-	submenu := app.NewSubMenu()
+	systray.Run(menu, func() {})
+}
+
+func menu() {
+	var wg sync.WaitGroup
+	systray.SetTitle("热搜")
 	list := getRealTimeHot()
 	for k, v := range list {
-		submenu.Line(k).Href(v)
+		wg.Add(1)
+		go func(k, v string) {
+			m := systray.AddMenuItem(k, v)
+			wg.Done()
+			<-m.ClickedCh
+			open.Run(v)
+		}(k, v)
 	}
-	app.Render()
+	wg.Wait()
+	systray.AddSeparator()
+	go func() {
+		quit := systray.AddMenuItem("退出", "退出")
+		<-quit.ClickedCh
+		systray.Quit()
+	}()
 }
 
 func getRealTimeHot() map[string]string {

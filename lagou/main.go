@@ -26,6 +26,7 @@ func main() {
 
 func request() {
 	client := &http.Client{}
+
 	value := &url.Values{}
 	//value.Set("companyIds", "62,2474,30608,28882,11293,5026,31064,294773,6040,97,82932533,422254,31261,68758,32123")
 	req, _ := http.NewRequest("GET", "https://www.lagou.com/c/approve.json", nil)
@@ -33,6 +34,7 @@ func request() {
 	resp, _ := client.Do(req)
 	cookie := resp.Header.Get("Set-Cookie")
 	fmt.Println(cookie)
+
 	value = &url.Values{}
 	value.Set("px", "new")
 	value.Set("city", "北京")
@@ -53,12 +55,13 @@ func request() {
 		"kd":    {"PHP"},
 		"pn":    {"1"},
 	}
+	fmt.Printf("%v", req)
 	resp, err = client.Do(req)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		log.Fatalf("status code : %d , status : %s", resp.StatusCode, resp.Status)
 	}
 	body, err := ioutil.ReadAll(resp.Body)
