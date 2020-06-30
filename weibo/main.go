@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"sync/atomic"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/getlantern/systray"
@@ -16,18 +17,24 @@ const (
 	userAgent   = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36"
 )
 
+var wg sync.WaitGroup
+var l sync.Mutex
+
 func main() {
-	systray.Run(menu, func() {})
+	systray.Run(menu, nil)
 }
 
 func menu() {
-	var wg sync.WaitGroup
 	systray.SetTitle("热搜")
 	list := getRealTimeHot()
+	n := make(map[int32]*systray.MenuItem)
 	for k, v := range list {
 		wg.Add(1)
 		go func(k, v string) {
 			m := systray.AddMenuItem(k, v)
+			l.Lock()
+			n[m.GetId()] = m
+			l.Unlock()
 			wg.Done()
 			<-m.ClickedCh
 			open.Run(v)
@@ -35,11 +42,40 @@ func menu() {
 	}
 	wg.Wait()
 	systray.AddSeparator()
-	go func() {
-		quit := systray.AddMenuItem("退出", "退出")
-		<-quit.ClickedCh
-		systray.Quit()
-	}()
+	refresh := systray.AddMenuItem("刷新", "刷新")
+	quit := systray.AddMenuItem("退出", "退出")
+	for {
+		select {
+		case <-refresh.ClickedCh:
+			update(n)
+		case <-quit.ClickedCh:
+			systray.Quit()
+		}
+	}
+
+	// go func() {
+	// 	refresh := systray.AddMenuItem("刷新", "刷新")
+	// 	<-refresh.ClickedCh
+	// 	update(n)
+	// }()
+	// go func() {
+	// 	quit := systray.AddMenuItem("退出", "退出")
+	// 	<-quit.ClickedCh
+	// 	systray.Quit()
+	// }()
+}
+
+func update(n map[int32]*systray.MenuItem) {
+	new := getRealTimeHot()
+	i := int32(0)
+	for k, v := range new {
+		l.Lock()
+		n[i].SetTitle(k)
+		n[i].SetTooltip(v)
+		<-n[i].ClickedCh
+		atomic.AddInt32(&i, 1)
+		l.Unlock()
+	}
 }
 
 func getRealTimeHot() map[string]string {
@@ -74,3 +110,9 @@ func getRealTimeHot() map[string]string {
 	})
 	return list
 }
+
+/** 修改systray.go
+func (item *MenuItem) GetId() int32 {
+	return item.id
+}
+**/
