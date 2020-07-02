@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
-	"sync/atomic"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/getlantern/systray"
@@ -18,64 +18,65 @@ const (
 )
 
 var wg sync.WaitGroup
-var l sync.Mutex
 
-func main() {
-	systray.Run(menu, nil)
+type menu struct {
+	title string
+	tips  string
 }
 
-func menu() {
+func main() {
+	systray.Run(run, nil)
+}
+
+func run() {
 	systray.SetTitle("热搜")
 	list := getRealTimeHot()
-	n := make(map[int32]*systray.MenuItem)
+	bar := make(chan *systray.MenuItem, len(list))
 	for k, v := range list {
 		wg.Add(1)
 		go func(k, v string) {
 			m := systray.AddMenuItem(k, v)
-			l.Lock()
-			n[m.GetId()] = m
-			l.Unlock()
+			bar <- m
 			wg.Done()
-			<-m.ClickedCh
-			open.Run(v)
+			for {
+				<-m.ClickedCh
+				open.Run(m.GetTooltip()) // 需要修改systray
+			}
 		}(k, v)
 	}
 	wg.Wait()
 	systray.AddSeparator()
-	refresh := systray.AddMenuItem("刷新", "刷新")
 	quit := systray.AddMenuItem("退出", "退出")
-	for {
+	go func(quit *systray.MenuItem) {
 		select {
-		case <-refresh.ClickedCh:
-			update(n)
 		case <-quit.ClickedCh:
 			systray.Quit()
 		}
-	}
+	}(quit)
 
-	// go func() {
-	// 	refresh := systray.AddMenuItem("刷新", "刷新")
-	// 	<-refresh.ClickedCh
-	// 	update(n)
-	// }()
-	// go func() {
-	// 	quit := systray.AddMenuItem("退出", "退出")
-	// 	<-quit.ClickedCh
-	// 	systray.Quit()
-	// }()
-}
+	t1 := time.NewTicker(30 * time.Minute)
+	go func(t *time.Ticker) {
+		for {
+			<-t.C
+			now2 := getRealTimeHot()
+			now1 := make(chan menu, len(now2))
+			for k, v := range now2 {
+				now1 <- menu{
+					title: k,
+					tips:  v,
+				}
+			}
+			for i := 0; i < len(bar); i++ {
+				l := <-now1
+				m := <-bar
+				m.SetTitle(l.title)
+				m.SetTooltip(l.tips)
+				bar <- m
+			}
+			close(now1)
+		}
+	}(t1)
 
-func update(n map[int32]*systray.MenuItem) {
-	new := getRealTimeHot()
-	i := int32(0)
-	for k, v := range new {
-		l.Lock()
-		n[i].SetTitle(k)
-		n[i].SetTooltip(v)
-		<-n[i].ClickedCh
-		atomic.AddInt32(&i, 1)
-		l.Unlock()
-	}
 }
 
 func getRealTimeHot() map[string]string {
@@ -110,9 +111,3 @@ func getRealTimeHot() map[string]string {
 	})
 	return list
 }
-
-/** 修改systray.go
-func (item *MenuItem) GetId() int32 {
-	return item.id
-}
-**/
