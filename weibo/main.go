@@ -29,7 +29,7 @@ func main() {
 }
 
 func run() {
-	systray.SetTitle("热搜")
+	systray.SetTitle("▤")
 	list := getRealTimeHot()
 	bar := make(chan *systray.MenuItem, len(list))
 	for k, v := range list {
