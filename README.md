@@ -5,3 +5,7 @@
 ## app.zip
 
 聚合腾讯、爱奇艺热播剧链接
+
+## thanks
+
+修改[systray](https://github.com/getlantern/systray)使支持onclick
