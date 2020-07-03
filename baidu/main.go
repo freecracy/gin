@@ -69,6 +69,7 @@ func getData() map[string]string {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		log.Fatalf("%d : %s \n", resp.StatusCode, resp.Status)
 	}
