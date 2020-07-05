@@ -7,8 +7,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/getlantern/systray"
-	"github.com/skratchdot/open-golang/open"
+	"github.com/freecracy/gin/systray"
 )
 
 const (
@@ -38,21 +37,24 @@ func run() {
 			m := systray.AddMenuItem(k, v)
 			bar <- m
 			wg.Done()
-			for {
-				<-m.ClickedCh
-				open.Run(m.GetTooltip()) // 需要修改systray
-			}
+			// for {
+			// 	<-m.ClickedCh
+			// 	open.Run(m.GetTooltip()) // 需要修改systray
+			// }
 		}(k, v)
 	}
 	wg.Wait()
 	systray.AddSeparator()
 	quit := systray.AddMenuItem("退出", "退出")
-	go func(quit *systray.MenuItem) {
-		select {
-		case <-quit.ClickedCh:
-			systray.Quit()
-		}
-	}(quit)
+	quit.SetOnClick(func(s string) {
+		systray.Quit()
+	})
+	// go func(quit *systray.MenuItem) {
+	// 	select {
+	// 	case <-quit.ClickedCh:
+	// 		systray.Quit()
+	// 	}
+	// }(quit)
 
 	t1 := time.NewTicker(30 * time.Minute)
 	go func(t *time.Ticker) {

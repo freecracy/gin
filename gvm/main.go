@@ -1,6 +1,7 @@
 package main
 
 import (
+	"archive/zip"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -62,6 +63,13 @@ func (p *progressWriter) update() {
 	end := "..."
 	if p.n == p.total {
 		end = ""
+	}
+	f := func(i int64) int {
+		var n int
+		for ; i != 0; i /= 10 {
+			n++
+		}
+		return n
 	}
 	fmt.Fprintf(os.Stderr, "\rdownload %5.1f%% (%*d / %d bytes)%s",
 		(100.0*float64(p.n))/float64(p.total),
@@ -140,4 +148,56 @@ func homeDir() (string, error) {
 		return u.HomeDir, nil
 	}
 	return "", errors.New("用户目录不存在")
+}
+
+func unpackArchive(targetDir, archiveFile string) error {
+	switch {
+	case strings.HasSuffix(archiveFile, ".zip"):
+		return nil
+	case strings.HasSuffix(archiveFile, ".tar.gz"):
+		return nil
+	default:
+		return errors.New(".zip or .tar.gz")
+	}
+}
+
+func unpackZip(targetDir, archiveFile string) error {
+	f, err := zip.OpenReader(archiveFile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	for _, f := range f.File {
+		name := strings.TrimPrefix(f.Name, "dl-master/")
+		out := filepath.Join(targetDir, name)
+		if f.FileInfo().IsDir() {
+			if err := os.MkdirAll(out, 0755); err != nil {
+				return nil
+			}
+			continue
+		}
+		old, err := f.Open()
+		if err != nil {
+			return err
+		}
+		if err := os.MkdirAll(
+			filepath.Join(filepath.Dir(out)),
+			0755); err != nil {
+			return err
+		}
+		new, err := os.OpenFile(out, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+		if err != nil {
+			return err
+		}
+		_, err = io.Copy(new, old)
+		old.Close()
+		if err != nil {
+			new.Close()
+			return err
+		}
+		if err := new.Close(); err != nil {
+			return err
+		}
+	}
+	return nil
 }

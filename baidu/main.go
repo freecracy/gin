@@ -6,8 +6,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/axgle/mahonia"
-	"github.com/getlantern/systray"
-	"github.com/skratchdot/open-golang/open"
+	"github.com/freecracy/gin/systray"
 )
 
 const (
@@ -17,43 +16,55 @@ const (
 )
 
 func main() {
-	systray.Run(Run, nil)
+	systray.Run(run, nil)
 }
 
-func Run() {
+func run() {
 	systray.SetTitle("baidu")
 	list := getData()
 	menu := make(chan *systray.MenuItem, len(list))
 	refresh := systray.AddMenuItem("刷新", "刷新")
-	go func(r *systray.MenuItem) {
-		for {
-			<-r.ClickedCh
-			list = getData()
-			for k, v := range list {
-				m := <-menu
-				m.SetTitle(k)
-				m.SetTooltip(v)
-				menu <- m
-			}
+	refresh.SetOnClick(func(s string) {
+		list = getData()
+		for k, v := range list {
+			m := <-menu
+			m.SetTitle(k)
+			m.SetTooltip(v)
+			menu <- m
 		}
-	}(refresh)
+	})
+	// go func(r *systray.MenuItem) {
+	// 	for {
+	// 		<-r.ClickedCh
+	// 		list = getData()
+	// 		for k, v := range list {
+	// 			m := <-menu
+	// 			m.SetTitle(k)
+	// 			m.SetTooltip(v)
+	// 			menu <- m
+	// 		}
+	// 	}
+	// }(refresh)
 	systray.AddSeparator()
 	for k, v := range list {
 		m := systray.AddMenuItem(k, v)
 		menu <- m
-		go func(m *systray.MenuItem) {
-			for {
-				<-m.ClickedCh
-				open.Run(m.GetTooltip())
-			}
-		}(m)
+		// go func(m *systray.MenuItem) {
+		// 	for {
+		// 		<-m.ClickedCh
+		// 		open.Run(m.GetTooltip())
+		// 	}
+		// }(m)
 	}
 	systray.AddSeparator()
 	quit := systray.AddMenuItem("退出", "退出")
-	go func(q *systray.MenuItem) {
-		<-quit.ClickedCh
+	quit.SetOnClick(func(s string) {
 		systray.Quit()
-	}(quit)
+	})
+	// go func(q *systray.MenuItem) {
+	// 	<-quit.ClickedCh
+	// 	systray.Quit()
+	// }(quit)
 }
 
 func getData() map[string]string {
@@ -85,13 +96,13 @@ func getData() map[string]string {
 			a := m.Find("a").Eq(0)
 			title := a.Text()
 			href, _ := a.Attr("href")
-			ans[ConvertToString(title, "GBK", "utf-8")] = href
+			ans[convertToString(title, "GBK", "utf-8")] = href
 		})
 	})
 	return ans
 }
 
-func ConvertToString(src string, srcCode string, tagCode string) string {
+func convertToString(src string, srcCode string, tagCode string) string {
 	srcCoder := mahonia.NewDecoder(srcCode)
 	srcResult := srcCoder.ConvertString(src)
 	tagCoder := mahonia.NewDecoder(tagCode)

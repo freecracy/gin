@@ -5,8 +5,7 @@ import (
 	"net/http"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/getlantern/systray"
-	"github.com/skratchdot/open-golang/open"
+	"github.com/freecracy/gin/systray"
 )
 
 const (
@@ -16,10 +15,10 @@ const (
 )
 
 func main() {
-	systray.Run(Run, nil)
+	systray.Run(run, nil)
 }
 
-func Run() {
+func run() {
 	systray.SetTitle("热播")
 	systray.AddMenuItem("腾讯|爱奇艺", "腾讯|爱奇艺")
 	systray.AddSeparator()
@@ -30,19 +29,20 @@ func Run() {
 	addMenuItem(list)
 	systray.AddSeparator()
 	quit := systray.AddMenuItem("退出", "退出")
-	<-quit.ClickedCh
-	systray.Quit()
+	quit.SetOnClick(func(string) {
+		systray.Quit()
+	})
 }
 
 func addMenuItem(list map[string]string) {
 	for k, v := range list {
-		m := systray.AddMenuItem(k, v)
-		go func(m *systray.MenuItem) {
-			for {
-				<-m.ClickedCh
-				open.Run(m.GetTooltip())
-			}
-		}(m)
+		systray.AddMenuItem(k, v)
+		// go func(m *systray.MenuItem) {
+		// 	for {
+		// 		<-m.ClickedCh
+		// 		open.Run(m.GetTooltip())
+		// 	}
+		// }(m)
 	}
 }
 
