@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
 	"runtime"
@@ -22,7 +23,52 @@ const (
 )
 
 func main() {
-	downloaddl()
+	cmd := exec.Command("go", os.Args[1:]...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	newpath := filepath.Join(os.Getenv("home"), ".gvm2", "bin")
+	if p := os.Getenv("PATH"); p != "" {
+		newpath += string(filepath.ListSeparator) + p
+	}
+	cmd.Env = dedupEnv(append(os.Environ(), "GOROOT="+".go", "PATH="+newpath))
+	if err := cmd.Run(); err != nil {
+		log.Fatalln(err)
+	}
+}
+
+// test FAIL ??? out 的长度
+func dedupEnv(env []string) []string {
+	out := make([]string, 0) // make([]string, len(env)) append 发生扩容
+	saw := map[string]int{}
+	for _, v := range env {
+		eq := strings.Index(v, "=")
+		if eq < 1 {
+			//out = append(out, v)
+			continue
+		}
+		k := v[:eq]
+		if depindex, isdep := saw[k]; isdep {
+			out[depindex] = v
+		} else {
+			saw[k] = len(out)
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+func list() {
+	if len(os.Args) > 1 {
+		switch {
+		case os.Args[1] == "list":
+			versions, err := listAllVersion(filepath.Join(os.Getenv("HOME"), ".gvm2", "dl"))
+			if err != nil {
+				log.Fatalln(err)
+			}
+			fmt.Println(versions)
+		}
+	}
 }
 
 func verifySHA256() string {

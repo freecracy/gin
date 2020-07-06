@@ -1,19 +1,19 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"strings"
 )
 
-func listAllVersion(targetDir string) error {
+func listAllVersion(targetDir string) ([]string, error) {
+	ans := make([]string, 0)
 	dir, err := os.Open(targetDir)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	f, err := dir.Readdir(-1)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	for _, v := range f {
 		if strings.Contains(v.Name(), "beta") {
@@ -25,6 +25,13 @@ func listAllVersion(targetDir string) error {
 		if !strings.HasPrefix(v.Name(), "go") {
 			continue
 		}
+		if strings.Count(v.Name(), ".") == 2 {
+			continue
+		}
+		if v.Name() == "gotip" || v.Name() == "go.mod" {
+			continue
+		}
+		ans = append(ans, v.Name())
 	}
-	return fmt.Errorf("%v", ans)
+	return ans, nil
 }
